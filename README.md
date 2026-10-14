@@ -49,21 +49,69 @@ To uninstall, it's as easy as deleting `tacky-borders.exe`.
 > [!NOTE]
 > If you wish to remove all traces of _tacky-borders_ from your system, you should also ensure auto-start is disabled via the tray menu and delete the config folder located at ```%userprofile%/.config/tacky-borders/```
 
-## Settings GUI (this fork) / 설정 GUI
+## 설정 GUI (this fork)
 
-This fork adds a graphical settings window so that config.yaml does not have to be edited by hand.
+원본 _tacky-borders_ 는 `config.yaml` 을 텍스트 편집기로 직접 고쳐야 합니다. 이 포크는 트레이 메뉴에서 여는 **한글 설정 창**을 추가해, 설정 파일 스펙을 몰라도 모든 옵션을 화면에서 고치고 바로 적용할 수 있게 합니다.
 
-- Right-click the tray icon and choose **설정...** (the tray menu is in Korean in this fork), or run `tacky-borders.exe settings` while the daemon is running.
-- Pages: 일반 (general), 테두리 (border), 색상 (colors), 애니메이션 (animations), 효과 (effects), 창 규칙 (window rules).
-- **저장 및 적용** writes config.yaml (with Korean comments on every option) and reloads the borders right away. Comments written by hand are not preserved.
-- Closing the window only hides it, so reopening is instant. It re-reads config.yaml when reopened unless there are unsaved edits.
-- `cargo run --example settings_window` opens only the window, for GUI development.
+![설정 창 - 색상 페이지](docs/settings-gui-colors.png)
 
-트레이 아이콘을 오른쪽 클릭한 뒤 **설정...** 을 고르면 한글 설정 창이 열립니다. 설정 파일 위치는 그대로 `%userprofile%\.config\tacky-borders\config.yaml` 이며, 창에서 저장하면 각 항목에 한글 주석이 붙은 형태로 다시 쓰여집니다.
+### 여는 방법
+
+- 트레이 아이콘을 오른쪽 클릭하고 **설정...** 을 고릅니다.
+- 또는 _tacky-borders_ 가 실행 중일 때 명령줄에서 `tacky-borders.exe settings` 를 실행합니다. (일반 페이지의 "IPC 서버 사용" 이 켜져 있어야 합니다.)
+
+### 화면 구성
+
+왼쪽 목록에서 페이지를 고르면 오른쪽에 해당 항목이 나옵니다. 각 항목 옆의 회색 설명과 마우스를 올렸을 때 나오는 도움말이 `config.yaml` 의 주석을 대신합니다.
+
+| 페이지 | 다루는 설정 |
+| --- | --- |
+| 일반 | 설정 파일 경로, 설정 파일 변경 감시, 로그 기록, IPC 서버, 렌더러(V2 / Legacy) |
+| 테두리 | 두께, 위치(오프셋, 면마다 다르게 지정 가능), 모서리, Z 순서, 기본 테두리 따라가기, 새 창·복원 지연 |
+| 색상 | 활성 창 / 비활성 창 색. 단색, Windows 강조색, 그라데이션(각도 또는 좌표), 테마별(다크 / 라이트)을 고르고 색상 피커로 편집. komorebi 연동 색 |
+| 애니메이션 | 활성 / 비활성 창의 애니메이션 목록(Spiral, ReverseSpiral, Fade), 길이, 가속 곡선, 프레임 속도 |
+| 효과 | 활성 / 비활성 창의 효과 목록(Shadow, Glow), 흐림, 퍼짐, 불투명도, 이동 |
+| 창 규칙 | 창 클래스 / 제목 / 프로세스 이름으로 창을 찾아 테두리를 켜고 끄거나, 그 창에만 다른 설정을 덮어쓰는 규칙 목록. 순서 변경과 추가·삭제 |
+
+![설정 창 - 창 규칙 페이지](docs/settings-gui-rules.png)
+
+창 규칙에서는 "이 창에만 다르게 적용할 설정" 에서 체크한 항목만 전역 설정 대신 쓰입니다. 체크하지 않은 항목은 전역 설정을 그대로 따릅니다.
+
+### 저장과 적용
+
+- **저장 및 적용**: `config.yaml` 을 쓰고 실행 중인 테두리에 곧바로 반영합니다. 다시 시작할 필요가 없습니다.
+    - 저장 전에 색상 형식, 그라데이션 색 개수, 규칙 이름과 정규식을 검사하고, 문제가 있으면 저장하지 않고 상태줄에 이유를 보여 줍니다.
+- **파일에서 다시 읽기**: 화면의 변경을 버리고 `config.yaml` 을 다시 읽습니다.
+- **기본값으로 되돌리기**: 원본과 같은 기본 설정을 화면에 불러옵니다. 저장해야 적용됩니다.
+- **설정 폴더 열기**: `%userprofile%\.config\tacky-borders` 폴더를 탐색기로 엽니다.
+- 저장하지 않은 변경이 있으면 제목 표시줄에 `*` 가, 아래쪽에 "저장하지 않은 변경" 표시가 나타나고, 창을 닫을 때 저장 여부를 묻습니다.
+
+### 알아둘 점
+
+- 설정 파일 위치와 형식은 원본과 같습니다. 텍스트 편집기로 직접 고치는 방법도 그대로 쓸 수 있고, "설정 파일 변경 감시" 가 켜져 있으면 저장 즉시 반영됩니다.
+- 설정 창에서 저장하면 `config.yaml` 을 통째로 다시 씁니다. 각 항목에 한글 설명 주석이 자동으로 붙지만, 사용자가 손으로 써 둔 주석은 사라집니다.
+- 창을 닫아도 프로그램은 숨기기만 하므로 다음에 즉시 열립니다. 다시 열 때 저장하지 않은 변경이 없으면 `config.yaml` 을 새로 읽습니다.
+- 트레이 메뉴 항목도 한글입니다: 설정..., 설정 폴더 열기, 자동 시작, 다시 불러오기, 종료.
+- 한글 글꼴은 Windows 의 맑은 고딕을 실행 시 읽어 씁니다.
+
+### 개발자용
+
+- `cargo run --example settings_window` 로 데몬 없이 설정 창만 띄울 수 있습니다.
+- `cargo test --lib settings_gui -- --ignored` 는 각 페이지를 헤드리스로 렌더링해 `target/settings_gui_snapshots/*.png` 로 남깁니다. 위 스크린샷도 이 방법으로 만든 것입니다.
+
+### Settings GUI (English summary)
+
+This fork adds a Korean-language settings window so that `config.yaml` does not have to be edited by hand.
+
+- Open it from the tray menu (**설정...**) or with `tacky-borders.exe settings` while the daemon is running.
+- Pages: general, border, colors, animations, effects and window rules. Every option in `config.yaml` can be edited, including per-rule overrides.
+- **저장 및 적용** (save and apply) validates the input, rewrites `config.yaml` with Korean comments on every option, and reloads the borders immediately. Hand-written comments are not preserved.
+- Closing the window only hides it; it re-reads `config.yaml` when reopened unless there are unsaved edits.
+- The tray menu is in Korean in this fork.
 
 ## Configuration Options
 
-The config file is located in ```%userprofile%/.config/tacky-borders/```. You can easily access this folder by right clicking on the tray icon and hitting "설정 폴더 열기" (Show Config)
+The config file is located in ```%userprofile%/.config/tacky-borders/```. You can easily access this folder by right clicking on the tray icon and hitting "설정 폴더 열기" (Show Config). In this fork, every option below can also be edited from the settings window described above.
 
 The following auto-generated config.yaml is included as reference:
 
