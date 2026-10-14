@@ -1,13 +1,20 @@
 use anyhow::Context;
-use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem};
+use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem};
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 use windows::Win32::UI::Accessibility::{HWINEVENTHOOK, UnhookWinEvent};
 use windows::Win32::UI::WindowsAndMessaging::PostQuitMessage;
 
 use crate::auto_start::{is_autostart_enabled, toggle_autostart};
 use crate::config::Config;
+use crate::settings_gui;
 use crate::utils::LogIfErr;
 use crate::{BG_SERVICES, destroy_borders, reload_borders};
+
+const MENU_SETTINGS: &str = "settings";
+const MENU_OPEN_CONFIG_DIR: &str = "open_config_dir";
+const MENU_AUTO_START: &str = "auto_start";
+const MENU_RELOAD: &str = "reload";
+const MENU_QUIT: &str = "quit";
 
 pub fn create_tray_icon(hwineventhook: HWINEVENTHOOK) -> anyhow::Result<TrayIcon> {
     let icon = match Icon::from_resource(1, Some((64, 64))) {
@@ -26,10 +33,13 @@ pub fn create_tray_icon(hwineventhook: HWINEVENTHOOK) -> anyhow::Result<TrayIcon
 
     let tray_menu = Menu::new();
     tray_menu.append_items(&[
-        &MenuItem::with_id("0", "Show Config", true, None),
-        &CheckMenuItem::with_id("1", "Auto Start", true, auto_enabled, None),
-        &MenuItem::with_id("2", "Reload", true, None),
-        &MenuItem::with_id("3", "Close", true, None),
+        &MenuItem::with_id(MENU_SETTINGS, "설정...", true, None),
+        &MenuItem::with_id(MENU_OPEN_CONFIG_DIR, "설정 폴더 열기", true, None),
+        &PredefinedMenuItem::separator(),
+        &CheckMenuItem::with_id(MENU_AUTO_START, "자동 시작", true, auto_enabled, None),
+        &MenuItem::with_id(MENU_RELOAD, "다시 불러오기", true, None),
+        &PredefinedMenuItem::separator(),
+        &MenuItem::with_id(MENU_QUIT, "종료", true, None),
     ])?;
 
     let tooltip = format!("{}{}", "tacky-borders v", env!("CARGO_PKG_VERSION"));
@@ -45,26 +55,23 @@ pub fn create_tray_icon(hwineventhook: HWINEVENTHOOK) -> anyhow::Result<TrayIcon
 
     // Handle tray icon events (i.e. clicking on the menu items)
     MenuEvent::set_event_handler(Some(move |event: MenuEvent| match event.id.0.as_str() {
-        // Show Config
-        "0" => match Config::get_dir() {
+        MENU_SETTINGS => settings_gui::open(),
+        MENU_OPEN_CONFIG_DIR => match Config::get_dir() {
             Ok(dir) => {
                 open::that(dir).log_if_err();
             }
             Err(err) => error!("{err:#}"),
         },
-        // Auto Start
-        "1" => {
+        MENU_AUTO_START => {
             if let Err(err) = toggle_autostart() {
                 error!("{err:#}")
             }
         }
-        // Reload
-        "2" => {
+        MENU_RELOAD => {
             Config::reload();
             reload_borders();
         }
-        // Close
-        "3" => {
+        MENU_QUIT => {
             destroy_borders();
 
             // Convert hwineventhook_isize back into HWINEVENTHOOK, and unhook it

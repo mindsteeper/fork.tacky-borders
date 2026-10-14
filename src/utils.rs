@@ -686,6 +686,12 @@ pub fn create_border_for_window(tracking_window: HWND, window_rule: WindowRule) 
     let _ = thread::spawn(move || {
         let tracking_window = HWND(tracking_window_isize as _);
 
+        // Must happen before this thread creates its border window (see main.rs)
+        imm_disable_ime(0)
+            .ok()
+            .context("could not disable ime for border thread")
+            .log_if_err();
+
         // Note: 'key' for the hashmap is the tracking window, 'value' is the border window
         let mut borders_hashmap = APP_STATE.borders.lock().unwrap();
 

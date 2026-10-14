@@ -16,11 +16,14 @@ use crate::utils::{
     remove_file_if_exists,
 };
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct KomorebiColorsConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stack_color: Option<ColorBrushConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub monocle_color: Option<ColorBrushConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub floating_color: Option<ColorBrushConfig>,
     #[serde(default = "serde_default_bool::<true>")]
     pub enabled: bool,

@@ -201,6 +201,8 @@ pub enum IpcCommand {
     },
     Reload,
     GetState,
+    /// Shows the settings GUI window (same as the tray menu item)
+    OpenSettings,
 }
 
 fn process_command(raw: &str) -> String {
@@ -238,6 +240,10 @@ fn process_command(raw: &str) -> String {
         IpcCommand::Reload => {
             Config::reload();
             crate::reload_borders();
+            json!({"ok": true}).to_string()
+        }
+        IpcCommand::OpenSettings => {
+            crate::settings_gui::open();
             json!({"ok": true}).to_string()
         }
         IpcCommand::GetState => {

@@ -49,9 +49,21 @@ To uninstall, it's as easy as deleting `tacky-borders.exe`.
 > [!NOTE]
 > If you wish to remove all traces of _tacky-borders_ from your system, you should also ensure auto-start is disabled via the tray menu and delete the config folder located at ```%userprofile%/.config/tacky-borders/```
 
+## Settings GUI (this fork) / 설정 GUI
+
+This fork adds a graphical settings window so that config.yaml does not have to be edited by hand.
+
+- Right-click the tray icon and choose **설정...** (the tray menu is in Korean in this fork), or run `tacky-borders.exe settings` while the daemon is running.
+- Pages: 일반 (general), 테두리 (border), 색상 (colors), 애니메이션 (animations), 효과 (effects), 창 규칙 (window rules).
+- **저장 및 적용** writes config.yaml (with Korean comments on every option) and reloads the borders right away. Comments written by hand are not preserved.
+- Closing the window only hides it, so reopening is instant. It re-reads config.yaml when reopened unless there are unsaved edits.
+- `cargo run --example settings_window` opens only the window, for GUI development.
+
+트레이 아이콘을 오른쪽 클릭한 뒤 **설정...** 을 고르면 한글 설정 창이 열립니다. 설정 파일 위치는 그대로 `%userprofile%\.config\tacky-borders\config.yaml` 이며, 창에서 저장하면 각 항목에 한글 주석이 붙은 형태로 다시 쓰여집니다.
+
 ## Configuration Options
 
-The config file is located in ```%userprofile%/.config/tacky-borders/```. You can easily access this folder by right clicking on the tray icon and hitting "Show Config"
+The config file is located in ```%userprofile%/.config/tacky-borders/```. You can easily access this folder by right clicking on the tray icon and hitting "설정 폴더 열기" (Show Config)
 
 The following auto-generated config.yaml is included as reference:
 

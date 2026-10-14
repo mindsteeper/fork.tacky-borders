@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time;
 use windows::Win32::Foundation::HWND;
@@ -12,17 +12,17 @@ use crate::config::{serde_default_bool, serde_default_i32};
 use crate::utils::cubic_bezier;
 use crate::window_border::WindowState;
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct AnimationsConfig {
     #[serde(default)]
-    active: Vec<AnimParamsConfig>,
+    pub active: Vec<AnimParamsConfig>,
     #[serde(default)]
-    inactive: Vec<AnimParamsConfig>,
+    pub inactive: Vec<AnimParamsConfig>,
     #[serde(default = "serde_default_i32::<60>")]
-    fps: i32,
+    pub fps: i32,
     #[serde(default = "serde_default_bool::<true>")]
-    enabled: bool,
+    pub enabled: bool,
 }
 
 impl AnimationsConfig {
@@ -196,12 +196,14 @@ impl Animations {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct AnimParamsConfig {
     #[serde(rename = "type")]
     pub anim_type: AnimType,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub duration: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub easing: Option<AnimEasing>,
 }
 
@@ -252,7 +254,7 @@ impl AnimVec for Vec<AnimParams> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AnimType {
     Spiral,
     ReverseSpiral,
@@ -260,7 +262,7 @@ pub enum AnimType {
 }
 
 // Thanks to 0xJWLabs for the AnimEasing enum along with its methods
-#[derive(Debug, Default, Clone, Copy, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum AnimEasing {
     // Linear
     #[default]

@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::fs::{self, DirBuilder};
 use std::os::windows::ffi::OsStrExt;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::thread::JoinHandle;
 use std::{env, iter, ptr, slice, thread, time};
 use windows::Win32::Foundation::{HANDLE, HWND};
@@ -30,7 +31,7 @@ use windows::core::PCWSTR;
 const DEFAULT_CONFIG: &str = include_str!("resources/config.yaml");
 
 /// The config.yaml definition
-#[derive(Debug, Default, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(default)]
@@ -41,6 +42,7 @@ pub struct Config {
     pub enable_ipc_server: bool,
     #[serde(default)]
     #[serde(alias = "rendering_backend")]
+    #[serde(rename(serialize = "rendering_backend"))]
     pub render_backend: RenderBackendConfig,
     #[serde(default = "serde_default_global")]
     pub global: Global,
@@ -59,7 +61,7 @@ fn serde_default_global() -> Global {
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Global {
     #[serde(default = "WidthConfig::serde_default")]
@@ -107,27 +109,41 @@ pub fn serde_default_bool<const V: bool>() -> bool {
     V
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+/// Per-window override rule. None fields fall back to the global config and are omitted on save.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct WindowRule {
-    #[serde(rename = "match")]
+    #[serde(rename = "match", skip_serializing_if = "Option::is_none")]
     pub kind: Option<MatchKind>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub strategy: Option<MatchStrategy>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub border_width: Option<WidthConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub border_offset: Option<OffsetConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub border_radius: Option<RadiusConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub border_z_order: Option<ZOrderMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub follow_native_border: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub active_color: Option<ColorBrushConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inactive_color: Option<ColorBrushConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub komorebi_colors: Option<KomorebiColorsConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub animations: Option<AnimationsConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub effects: Option<EffectsConfig>,
-    #[serde(alias = "init_delay")]
+    #[serde(alias = "init_delay", skip_serializing_if = "Option::is_none")]
     pub initialize_delay: Option<u64>,
-    #[serde(alias = "restore_delay")]
+    #[serde(alias = "restore_delay", skip_serializing_if = "Option::is_none")]
     pub unminimize_delay: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub enabled: Option<EnableMode>,
 }
 
@@ -147,7 +163,7 @@ pub enum MatchStrategy {
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(transparent)]
-pub struct WidthConfig(f32);
+pub struct WidthConfig(pub f32);
 
 impl WidthConfig {
     pub fn new(width: f32) -> Self {
@@ -264,7 +280,7 @@ impl RadiusConfig {
         }
     }
 }
-#[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 pub enum EnableMode {
     #[default]
     Auto,
@@ -272,7 +288,7 @@ pub enum EnableMode {
     Bool(bool),
 }
 
-#[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 pub enum ZOrderMode {
     #[default]
     AboveWindow,
@@ -280,6 +296,22 @@ pub enum ZOrderMode {
 }
 
 impl Config {
+    /// Parses the bundled default config.yaml (the one generated on first launch)
+    pub fn from_default_yaml() -> anyhow::Result<Self> {
+        serde_yaml_ng::from_str(DEFAULT_CONFIG).map_err(anyhow::Error::new)
+    }
+
+    pub fn get_path() -> anyhow::Result<PathBuf> {
+        Self::get_dir().map(|dir| dir.join("config.yaml"))
+    }
+
+    /// Writes this config to config.yaml with Korean comments (see config_writer)
+    ///   - Comments present in the previous file are not preserved
+    pub fn save(&self) -> anyhow::Result<()> {
+        let yaml = crate::config_writer::to_commented_yaml(self)?;
+        fs::write(Self::get_path()?, yaml).context("could not write config.yaml")
+    }
+
     pub fn create() -> anyhow::Result<Self> {
         let config_dir = Self::get_dir()?;
         let config_path = config_dir.join("config.yaml");
@@ -560,11 +592,23 @@ impl Drop for ConfigWatcher {
 }
 
 pub fn config_watcher_callback() {
+    apply_config_if_changed();
+}
+
+/// Re-reads config.yaml and recreates borders only when the running config actually changed
+///   - Serialized with a lock: the config watcher thread and the settings GUI may both call it
+///     for the same save, and concurrent reload_borders() calls could create duplicate borders
+pub fn apply_config_if_changed() {
+    static APPLY_LOCK: Mutex<()> = Mutex::new(());
+    let _guard = APPLY_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+
     let old_config = (*APP_STATE.config.read().unwrap()).clone();
     Config::reload();
-    let new_config = APP_STATE.config.read().unwrap();
+    let changed = old_config != *APP_STATE.config.read().unwrap();
 
-    if old_config != *new_config {
+    if changed {
         info!("config.yaml has changed; reloading borders");
         reload_borders();
     }

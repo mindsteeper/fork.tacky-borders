@@ -1,5 +1,5 @@
 use anyhow::Context;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::slice;
 use windows::Win32::Graphics::Direct2D::Common::{
     D2D1_COMPOSITE_MODE_DESTINATION_OUT, D2D1_COMPOSITE_MODE_SOURCE_OVER,
@@ -24,15 +24,15 @@ use crate::utils::{
 };
 use crate::window_border::WindowState;
 
-#[derive(Debug, Default, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct EffectsConfig {
     #[serde(default)]
-    active: Vec<EffectParamsConfig>,
+    pub active: Vec<EffectParamsConfig>,
     #[serde(default)]
-    inactive: Vec<EffectParamsConfig>,
+    pub inactive: Vec<EffectParamsConfig>,
     #[serde(default = "serde_default_bool::<true>")]
-    enabled: bool,
+    pub enabled: bool,
 }
 
 impl EffectsConfig {
@@ -455,21 +455,23 @@ impl Effects {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct EffectParamsConfig {
     #[serde(alias = "type")]
-    effect_type: EffectType,
+    #[serde(rename(serialize = "type"))]
+    pub effect_type: EffectType,
     #[serde(alias = "blur")]
     #[serde(alias = "radius")] // Backwards compatibility
+    #[serde(rename(serialize = "blur"))]
     #[serde(default = "serde_default_f32::<8>")]
-    std_dev: f32,
+    pub std_dev: f32,
     #[serde(default)]
-    spread: f32,
+    pub spread: f32,
     #[serde(default = "serde_default_f32::<1>")]
-    opacity: f32,
+    pub opacity: f32,
     #[serde(default)]
-    translation: Translation,
+    pub translation: Translation,
 }
 
 impl EffectParamsConfig {
@@ -511,13 +513,13 @@ impl EffectParams {
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum EffectType {
     Glow,
     Shadow,
 }
 
-#[derive(Debug, Default, Clone, Copy, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct Translation {
     pub x: f32,
     pub y: f32,

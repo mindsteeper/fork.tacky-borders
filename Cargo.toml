@@ -18,6 +18,9 @@ anyhow = "1.0.103"
 windows-numerics = "0.3.1"
 winreg = "0.56.0"
 pico-args = "0.5.0"
+egui = "0.36.2"
+eframe = { version = "0.36.2", default-features = false, features = ["glow", "default_fonts", "accesskit"] }
+winit = "0.30.13"
 
 [dependencies.windows]
 version = "0.62.2"
@@ -49,6 +52,7 @@ features = [
 ]
 
 [dev-dependencies]
+egui_kittest = { version = "0.36.2", features = ["wgpu"] }
 serial_test = "3.5.0"
 
 [build-dependencies]

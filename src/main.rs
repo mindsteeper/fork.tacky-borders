@@ -60,8 +60,10 @@ fn run_daemon() {
 
     info!("starting tacky-borders");
 
-    // xFFFFFFFF (-1) is used to disable IME windows for all threads in the current process.
-    imm_disable_ime(0xFFFFFFFF)
+    // IME is disabled per thread (0 = current thread) rather than process-wide (0xFFFFFFFF)
+    // so that the settings GUI thread can still take Korean input. Border threads disable
+    // IME for themselves before creating their windows.
+    imm_disable_ime(0)
         .ok()
         .context("could not disable ime")
         .log_if_err();
@@ -107,6 +109,7 @@ COMMANDS:
   set-radius <radius> [OPTIONS]    change border radius
   reload                           reload config.yaml and recreate borders
   get-state                        print runtime state as json
+  settings                         open the settings window
   msg <json>                       send a raw json command
   help                             show this help
 
@@ -181,6 +184,9 @@ fn run_cli(mut args: pico_args::Arguments) -> anyhow::Result<()> {
         }
         "reload" => serde_json::to_string(&IpcCommand::Reload)?,
         "get-state" | "get_state" => serde_json::to_string(&IpcCommand::GetState)?,
+        "settings" | "open-settings" | "open_settings" => {
+            serde_json::to_string(&IpcCommand::OpenSettings)?
+        }
         "msg" => args.free_from_str()?,
         "help" => {
             print!("{HELP_TEXT}");

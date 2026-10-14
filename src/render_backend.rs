@@ -1,5 +1,5 @@
 use anyhow::Context;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::mem::ManuallyDrop;
 use windows::Win32::Foundation::{HWND, LUID};
 use windows::Win32::Graphics::Direct2D::Common::{
@@ -53,7 +53,7 @@ pub const EXTRA_BITMAP_PROPS: D2D1_BITMAP_PROPERTIES1 = D2D1_BITMAP_PROPERTIES1 
     colorContext: ManuallyDrop::new(None),
 };
 
-#[derive(Debug, Default, Clone, Copy, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum RenderBackendConfig {
     #[default]
     V2,
