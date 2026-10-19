@@ -9,7 +9,7 @@ _tacky-borders_ lets you customize window borders on Windows 10 and 11.
 
 The easiest way to install _tacky-borders_ is to download a pre-built release from the [releases](https://github.com/luke-you/tacky-borders/releases) page.
 
-When you run the .exe for the first time, _tacky-borders_ will automatically generate a config file for you in ```%userprofile%/.config/tacky-borders/```.
+When you run the .exe for the first time, _tacky-borders_ will automatically generate a config file for you in the folder containing `tacky-borders.exe` (this fork; see [설정 파일 위치](#설정-파일-위치-this-fork)).
 
 ### Build It Yourself
 
@@ -47,7 +47,7 @@ Alternatively, if you wish to build it yourself, you can follow these steps:
 To uninstall, it's as easy as deleting `tacky-borders.exe`.
 
 > [!NOTE]
-> If you wish to remove all traces of _tacky-borders_ from your system, you should also ensure auto-start is disabled via the tray menu and delete the config folder located at ```%userprofile%/.config/tacky-borders/```
+> If you wish to remove all traces of _tacky-borders_ from your system, you should also ensure auto-start is disabled via the tray menu and delete the config folder: the folder containing `tacky-borders.exe`, or the folder in `TACKY_BORDERS_CONFIG_HOME` if you set it. Older versions used ```%userprofile%/.config/tacky-borders/```, which may also be left over.
 
 ## 설정 GUI (this fork)
 
@@ -83,12 +83,13 @@ To uninstall, it's as easy as deleting `tacky-borders.exe`.
     - 저장 전에 색상 형식, 그라데이션 색 개수, 규칙 이름과 정규식을 검사하고, 문제가 있으면 저장하지 않고 상태줄에 이유를 보여 줍니다.
 - **파일에서 다시 읽기**: 화면의 변경을 버리고 `config.yaml` 을 다시 읽습니다.
 - **기본값으로 되돌리기**: 원본과 같은 기본 설정을 화면에 불러옵니다. 저장해야 적용됩니다.
-- **설정 폴더 열기**: `%userprofile%\.config\tacky-borders` 폴더를 탐색기로 엽니다.
+- **설정 폴더 열기**: 지금 쓰는 설정 폴더를 탐색기로 엽니다. 폴더를 정하는 규칙은 [설정 파일 위치](#설정-파일-위치-this-fork) 를 보세요.
 - 저장하지 않은 변경이 있으면 제목 표시줄에 `*` 가, 아래쪽에 "저장하지 않은 변경" 표시가 나타나고, 창을 닫을 때 저장 여부를 묻습니다.
 
 ### 알아둘 점
 
-- 설정 파일 위치와 형식은 원본과 같습니다. 텍스트 편집기로 직접 고치는 방법도 그대로 쓸 수 있고, "설정 파일 변경 감시" 가 켜져 있으면 저장 즉시 반영됩니다.
+- 설정 파일 형식은 원본과 같습니다. 텍스트 편집기로 직접 고치는 방법도 그대로 쓸 수 있고, "설정 파일 변경 감시" 가 켜져 있으면 저장 즉시 반영됩니다.
+- 일반 페이지 맨 위에 지금 쓰는 `config.yaml` 경로와, 그 폴더가 환경 변수로 정해졌는지 실행 파일 폴더인지가 표시됩니다.
 - 설정 창에서 저장하면 `config.yaml` 을 통째로 다시 씁니다. 각 항목에 한글 설명 주석이 자동으로 붙지만, 사용자가 손으로 써 둔 주석은 사라집니다.
 - 창을 닫아도 프로그램은 숨기기만 하므로 다음에 즉시 열립니다. 다시 열 때 저장하지 않은 변경이 없으면 `config.yaml` 을 새로 읽습니다.
 - 트레이 메뉴 항목도 한글입니다: 설정..., 설정 폴더 열기, 자동 시작, 다시 불러오기, 종료.
@@ -109,9 +110,49 @@ This fork adds a Korean-language settings window so that `config.yaml` does not 
 - Closing the window only hides it; it re-reads `config.yaml` when reopened unless there are unsaved edits.
 - The tray menu is in Korean in this fork.
 
+## 설정 파일 위치 (this fork)
+
+`config.yaml`, 로그 파일(`tacky-borders.log`), IPC 소켓(`tacky-borders.sock`)은 모두 같은 설정 폴더에 생깁니다. 설정 폴더는 아래 순서로 정합니다.
+
+1. **환경 변수 `TACKY_BORDERS_CONFIG_HOME`**: 값이 있으면 그 폴더를 씁니다. 폴더가 없으면 새로 만듭니다.
+2. **실행 파일 위치**: 환경 변수가 없거나 비어 있으면 `tacky-borders.exe` 가 있는 폴더를 씁니다.
+
+- 환경 변수 값은 설정 폴더 자체입니다. 뒤에 `tacky-borders` 같은 하위 폴더를 붙이지 않습니다.
+- 실행 파일 위치는 작업 폴더가 아니라 exe 파일이 실제로 있는 폴더입니다. 자동 시작, 바로 가기, 명령줄 어디서 실행해도 같은 폴더를 씁니다.
+- 원본 _tacky-borders_ 는 `%userprofile%\.config\tacky-borders` 를 기본 위치로 씁니다. 이 포크는 그 대신 실행 파일 폴더를 씁니다.
+
+### 환경 변수로 위치 바꾸기
+
+PowerShell 에서 사용자 환경 변수로 등록하거나 해제합니다. "시스템 속성 > 고급 > 환경 변수" 창에서 고쳐도 됩니다.
+
+```powershell
+# 등록
+[Environment]::SetEnvironmentVariable("TACKY_BORDERS_CONFIG_HOME", "D:\MyConfigs\tacky-borders", "User")
+
+# 해제 (실행 파일 폴더로 돌아감)
+[Environment]::SetEnvironmentVariable("TACKY_BORDERS_CONFIG_HOME", $null, "User")
+```
+
+- 바꾼 뒤에는 tacky-borders 를 종료하고 다시 실행해야 합니다. 이미 실행 중인 프로세스와 이미 열려 있던 명령 창은 이전 값을 계속 씁니다.
+- `tacky-borders.exe settings` 같은 CLI 명령도 설정 폴더에서 IPC 소켓을 찾습니다. 그래서 명령 창 하나에서만 `$env:TACKY_BORDERS_CONFIG_HOME` 으로 지정하지 말고 사용자 환경 변수로 등록하세요.
+- 기존 설정을 새 폴더로 옮겨 주지는 않습니다. 새 폴더에 `config.yaml` 이 없으면 기본 설정을 만듭니다. 이어 쓰려면 기존 `config.yaml` 을 직접 복사하세요.
+
+### 실행 파일 폴더를 쓸 때 알아둘 점
+
+- 실행 파일 폴더에 쓰기 권한이 있어야 합니다. `C:\Program Files` 처럼 관리자 권한이 필요한 곳에 두면 설정 파일을 만들거나 저장하지 못합니다. 그런 곳에 둘 때는 환경 변수로 다른 폴더를 지정하세요.
+- 실행 파일 폴더에 `config.yaml` 이 없고 이전 기본 위치(`%userprofile%\.config\tacky-borders\config.yaml`)에 설정이 있으면, 처음 실행할 때 그 파일을 실행 파일 폴더로 복사해 씁니다. 원본에서 쓰던 설정을 그대로 이어 쓰기 위함입니다.
+    - 이전 위치의 파일은 지우지 않습니다. 복사된 것을 확인했으면 이전 폴더는 지워도 됩니다.
+    - 이전 폴더를 남겨 둔 채 새 `config.yaml` 을 지우면 기본 설정 대신 이전 파일이 다시 복사됩니다. 기본 설정으로 돌리려면 설정 창의 **기본값으로 되돌리기** 를 쓰세요.
+    - 환경 변수로 폴더를 지정한 경우에는 복사하지 않습니다.
+- 실행 파일을 다른 폴더로 옮기면 설정 폴더도 바뀝니다. 설정을 유지하려면 `config.yaml` 을 함께 옮기세요.
+- CLI 명령은 실행 중인 것과 같은 폴더의 `tacky-borders.exe` 로 보내야 합니다. 다른 폴더에 있는 exe 는 다른 설정 폴더에서 IPC 소켓을 찾습니다.
+- 직접 빌드해 `cargo run` 으로 실행하면 `target\debug` 또는 `target\release` 폴더가 설정 폴더가 됩니다.
+
+**English summary:** `config.yaml`, the log file and the IPC socket live in the folder named by `TACKY_BORDERS_CONFIG_HOME` when it is set to a non-empty value, and otherwise in the folder containing `tacky-borders.exe` (upstream uses `%userprofile%\.config\tacky-borders` instead). When the exe folder has no `config.yaml` yet, a config from the old upstream location is copied over on first run.
+
 ## Configuration Options
 
-The config file is located in ```%userprofile%/.config/tacky-borders/```. You can easily access this folder by right clicking on the tray icon and hitting "설정 폴더 열기" (Show Config). In this fork, every option below can also be edited from the settings window described above.
+The config file is located in the config folder described in [설정 파일 위치](#설정-파일-위치-this-fork): `TACKY_BORDERS_CONFIG_HOME` if set, otherwise the folder containing `tacky-borders.exe`. You can easily access this folder by right clicking on the tray icon and hitting "설정 폴더 열기" (Show Config). In this fork, every option below can also be edited from the settings window described above.
 
 The following auto-generated config.yaml is included as reference:
 

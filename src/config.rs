@@ -10,7 +10,9 @@ use crate::{
 use anyhow::{Context, anyhow};
 use dirs::home_dir;
 use serde::{Deserialize, Serialize};
+use std::ffi::OsString;
 use std::fs::{self, DirBuilder};
+use std::io;
 use std::os::windows::ffi::OsStrExt;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -295,6 +297,45 @@ pub enum ZOrderMode {
     BelowWindow,
 }
 
+/// Environment variable that overrides the config directory
+pub const CONFIG_HOME_ENV: &str = "TACKY_BORDERS_CONFIG_HOME";
+
+/// Where the config directory came from
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConfigDirSource {
+    EnvVar,
+    ExeDir,
+}
+
+/// Config directory resolution order; takes its inputs as arguments so tests can call it
+///   - 1. TACKY_BORDERS_CONFIG_HOME, when set to a non-empty value
+///   - 2. The directory containing tacky-borders.exe, not the working directory,
+///     so autostart, shortcuts and CLI commands all end up in the same folder
+fn resolve_config_dir(
+    env_value: Option<OsString>,
+    current_exe: io::Result<PathBuf>,
+) -> anyhow::Result<(PathBuf, ConfigDirSource)> {
+    if let Some(value) = env_value.filter(|value| !value.is_empty()) {
+        return Ok((PathBuf::from(value), ConfigDirSource::EnvVar));
+    }
+
+    let exe_path = current_exe.context("could not get the path of tacky-borders.exe")?;
+    let exe_dir = exe_path
+        .parent()
+        .ok_or_else(|| anyhow!("could not get the directory of {}", exe_path.display()))?;
+
+    Ok((exe_dir.to_path_buf(), ConfigDirSource::ExeDir))
+}
+
+/// config.yaml from the default location used before this fork moved it next to the exe
+fn legacy_config_path() -> Option<PathBuf> {
+    home_dir().map(|dir| {
+        dir.join(".config")
+            .join("tacky-borders")
+            .join("config.yaml")
+    })
+}
+
 impl Config {
     /// Parses the bundled default config.yaml (the one generated on first launch)
     pub fn from_default_yaml() -> anyhow::Result<Self> {
@@ -331,11 +372,13 @@ impl Config {
 
         // If the config.yaml does not exist, try to create it
         if !exists {
-            let default_contents = DEFAULT_CONFIG.as_bytes();
-            fs::write(&config_path, default_contents)
-                .context("could not create default config.yaml")?;
+            if !Self::migrate_legacy_config(&config_path) {
+                let default_contents = DEFAULT_CONFIG.as_bytes();
+                fs::write(&config_path, default_contents)
+                    .context("could not create default config.yaml")?;
 
-            info!("generating default config in {}", config_dir.display());
+                info!("generating default config in {}", config_dir.display());
+            }
         }
 
         // We also implement retries here for the same reasons listed earlier
@@ -354,14 +397,47 @@ impl Config {
         serde_yaml_ng::from_str(&contents).map_err(anyhow::Error::new)
     }
 
+    /// Copies config.yaml from the old default location (~/.config/tacky-borders) next to the exe
+    ///   - Only when the directory comes from the exe location; the env var keeps upstream behavior
+    ///   - The old file is left in place, so deleting the new config.yaml copies it again
+    ///     instead of generating the defaults
+    fn migrate_legacy_config(config_path: &std::path::Path) -> bool {
+        if Self::get_dir_source().ok() != Some(ConfigDirSource::ExeDir) {
+            return false;
+        }
+        let Some(legacy_path) = legacy_config_path().filter(|path| path.is_file()) else {
+            return false;
+        };
+
+        match fs::copy(&legacy_path, config_path) {
+            Ok(_) => {
+                info!(
+                    "copied config.yaml from the previous default location {}",
+                    legacy_path.display()
+                );
+                true
+            }
+            Err(err) => {
+                error!(
+                    "could not copy config.yaml from {}: {err}",
+                    legacy_path.display()
+                );
+                false
+            }
+        }
+    }
+
+    /// Whether the config directory comes from the env var or the exe location
+    pub fn get_dir_source() -> anyhow::Result<ConfigDirSource> {
+        Self::resolve_dir().map(|(_, source)| source)
+    }
+
+    fn resolve_dir() -> anyhow::Result<(PathBuf, ConfigDirSource)> {
+        resolve_config_dir(env::var_os(CONFIG_HOME_ENV), env::current_exe())
+    }
+
     pub fn get_dir() -> anyhow::Result<PathBuf> {
-        let config_dir = env::var("TACKY_BORDERS_CONFIG_HOME")
-            .map(PathBuf::from)
-            .or_else(|env_err| {
-                home_dir()
-                    .map(|dir| dir.join(".config").join("tacky-borders"))
-                    .ok_or(anyhow!("could not find home dir, and could not access TACKY_BORDERS_CONFIG_HOME env var: {env_err}"))
-            })?;
+        let (config_dir, _) = Self::resolve_dir()?;
 
         if !config_dir.exists() {
             DirBuilder::new()
@@ -611,5 +687,41 @@ pub fn apply_config_if_changed() {
     if changed {
         info!("config.yaml has changed; reloading borders");
         reload_borders();
+    }
+}
+
+#[cfg(test)]
+mod config_dir_tests {
+    use super::*;
+
+    const EXE: &str = r"D:\Tools\TackyBorders\tacky-borders.exe";
+
+    #[test]
+    fn env_var_takes_priority_over_exe_dir() {
+        let (dir, source) =
+            resolve_config_dir(Some(OsString::from(r"E:\cfg")), Ok(PathBuf::from(EXE))).unwrap();
+        assert_eq!(dir, PathBuf::from(r"E:\cfg"));
+        assert_eq!(source, ConfigDirSource::EnvVar);
+    }
+
+    #[test]
+    fn falls_back_to_exe_dir() {
+        let (dir, source) = resolve_config_dir(None, Ok(PathBuf::from(EXE))).unwrap();
+        assert_eq!(dir, PathBuf::from(r"D:\Tools\TackyBorders"));
+        assert_eq!(source, ConfigDirSource::ExeDir);
+    }
+
+    #[test]
+    fn empty_env_var_is_ignored() {
+        let (_, source) =
+            resolve_config_dir(Some(OsString::new()), Ok(PathBuf::from(EXE))).unwrap();
+        assert_eq!(source, ConfigDirSource::ExeDir);
+    }
+
+    #[test]
+    fn env_var_does_not_need_exe_path() {
+        let exe_err = Err(io::Error::other("no exe"));
+        let (_, source) = resolve_config_dir(Some(OsString::from(r"E:\cfg")), exe_err).unwrap();
+        assert_eq!(source, ConfigDirSource::EnvVar);
     }
 }

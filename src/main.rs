@@ -129,6 +129,11 @@ OPTIONS for set-offset:
 OPTIONS for set-color, set-width, set-offset, set-radius:
   -f, --focused             only update the currently focused window's border;
                             all other borders are left unchanged
+
+CONFIG FOLDER:
+  config.yaml, tacky-borders.log and the IPC socket are kept in
+    1. the folder in the TACKY_BORDERS_CONFIG_HOME environment variable, if set
+    2. otherwise, the folder containing tacky-borders.exe
 ";
 
 fn run_cli(mut args: pico_args::Arguments) -> anyhow::Result<()> {

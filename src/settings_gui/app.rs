@@ -11,7 +11,10 @@ use regex::Regex;
 use super::editors::{self, hint, parse_angle, parse_hex};
 use super::{WINDOW_TITLE, take_show_request};
 use crate::colors::{ColorBrushConfig, GradientDirection};
-use crate::config::{Config, MatchKind, MatchStrategy, WindowRule, apply_config_if_changed};
+use crate::config::{
+    CONFIG_HOME_ENV, Config, ConfigDirSource, MatchKind, MatchStrategy, WindowRule,
+    apply_config_if_changed,
+};
 use crate::komorebi::KomorebiColorsConfig;
 use crate::render_backend::RenderBackendConfig;
 use crate::utils::LogIfErr;
@@ -262,6 +265,23 @@ impl SettingsApp {
                 ui.label("설정 파일");
                 ui.monospace(path.display().to_string());
             });
+            match Config::get_dir_source() {
+                Ok(ConfigDirSource::EnvVar) => {
+                    hint(
+                        ui,
+                        &format!("환경 변수 {CONFIG_HOME_ENV} 로 지정한 폴더입니다"),
+                    );
+                }
+                Ok(ConfigDirSource::ExeDir) => {
+                    hint(
+                        ui,
+                        &format!(
+                            "tacky-borders.exe 와 같은 폴더입니다. 환경 변수 {CONFIG_HOME_ENV} 로 바꿀 수 있습니다"
+                        ),
+                    );
+                }
+                Err(_) => {}
+            }
         }
         ui.add_space(8.0);
 
